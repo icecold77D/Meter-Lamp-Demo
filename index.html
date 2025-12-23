@@ -100,14 +100,22 @@
       width:100%;
       display:block;
     }
+
+    /* ✅ Fixed-position overlay icons (center-anchored) */
     .dashStage img.overlay{
       position:absolute;
-      left:0;
-      top:0;
-      width:100%;
-      height:auto;
-      display:none; /* hidden by default */
+      display:none;
       pointer-events:none;
+
+      /* width/pos are per-icon via CSS variables */
+      width: var(--w, 6%);
+      left:  var(--x, 50%);
+      top:   var(--y, 50%);
+
+      /* center anchor => x/y feel intuitive */
+      transform: translate(-50%, -50%);
+
+      /* glow 느낌 */
       filter: drop-shadow(0 0 10px rgba(34,197,94,.35));
     }
 
@@ -217,7 +225,7 @@
       color: var(--muted);
       font-size: 12.5px;
       line-height:1.35;
-      max-width: 520px;
+      max-width: 600px;
     }
     .pill{
       display:inline-block;
@@ -227,7 +235,7 @@
       background: rgba(255,255,255,.06);
       color:#cfe0ff;
       font-size:12px;
-      margin-left:6px;
+      margin: 6px 6px 0 0;
     }
   </style>
 </head>
@@ -235,10 +243,10 @@
   <div class="wrap">
     <div class="topbar">
       <div class="title">
-        <h1>BCM 燈號疊圖動畫 Demo</h1>
+        <h1>BCM Lamp Overlay Demo</h1>
         <div class="sub">
           ① 選擇燈號（可複選）→ ② 按「確認」→ ③ 隨機「同時/依序」＋隨機閃爍模式（3秒長亮/1秒閃/0.5秒閃）<br>
-          你把本頁丟 GitHub Pages 後，右側 QRCode 會自動變成可掃的入口。
+          圖片請與 index.html 放同一資料夾：pic.png + 六個燈圖。
         </div>
       </div>
 
@@ -255,7 +263,7 @@
       <!-- Dashboard Stage -->
       <div class="dashStage" id="dashStage">
         <img class="base" src="pic.png" alt="dashboard" />
-        <!-- overlays will be injected here -->
+        <!-- overlays injected by JS -->
       </div>
 
       <!-- Lamp selection grid -->
@@ -266,24 +274,23 @@
           <button id="btnConfirm">確認</button>
           <button id="btnStop" class="secondary" disabled>停止/重置</button>
         </div>
-        <div class="status" id="status">
-          狀態：待選擇燈號 <span class="pill">可複選</span>
-        </div>
+        <div class="status" id="status">狀態：待選擇燈號</div>
       </div>
     </div>
   </div>
 
   <script>
     // ---------------------------
-    // Config: lamps
+    // Lamps config (YOU will tune x,y,w)
+    // x/y/w are percentages relative to dashboard stage
     // ---------------------------
     const LAMPS = [
-      { key: "LeftTurn",  name: "左轉方向燈",  hint:"BCM_LeftTurnCommand",     file:"BCM_LeftTurnCommand.png" },
-      { key: "RightTurn", name: "右轉方向燈",  hint:"BCM_RightTurnCommand",    file:"BCM_RightTurnCommand.png" },
-      { key: "FrontFog",  name: "前霧燈",      hint:"BCM_FrontFogLampStatus",  file:"BCM_FrontFogLampStatus.png" },
-      { key: "RearFog",   name: "後霧燈",      hint:"BCM_RearFogLampStatus",   file:"BCM_RearFogLampStatus.png" },
-      { key: "MainBeam",  name: "遠光燈",      hint:"BCM_MainBeamStatus",      file:"BCM_MainBeamStatus.png" },
-      { key: "Position",  name: "示寬燈",      hint:"BCM_PoistionLampStatus",  file:"BCM_PoistionLampStatus.png" },
+      { key:"LeftTurn",  name:"左轉方向燈",  hint:"BCM_LeftTurnCommand",     file:"BCM_LeftTurnCommand.png",     x:"18%", y:"18%", w:"6%" },
+      { key:"RightTurn", name:"右轉方向燈",  hint:"BCM_RightTurnCommand",    file:"BCM_RightTurnCommand.png",    x:"82%", y:"18%", w:"6%" },
+      { key:"FrontFog",  name:"前霧燈",      hint:"BCM_FrontFogLampStatus",  file:"BCM_FrontFogLampStatus.png",  x:"56%", y:"18%", w:"6%" },
+      { key:"RearFog",   name:"後霧燈",      hint:"BCM_RearFogLampStatus",   file:"BCM_RearFogLampStatus.png",   x:"62%", y:"18%", w:"6%" },
+      { key:"MainBeam",  name:"遠光燈",      hint:"BCM_MainBeamStatus",      file:"BCM_MainBeamStatus.png",      x:"50%", y:"18%", w:"7%" },
+      { key:"Position",  name:"示寬燈",      hint:"BCM_PoistionLampStatus",  file:"BCM_PoistionLampStatus.png",  x:"44%", y:"18%", w:"6%" },
     ];
 
     // Random helpers
@@ -305,15 +312,22 @@
     let stopFlag = false;
 
     // ---------------------------
-    // Build overlays (stacked images)
+    // Build overlays (fixed icons)
     // ---------------------------
     function ensureOverlays() {
       for (const lamp of LAMPS) {
         if (overlayEls.has(lamp.key)) continue;
+
         const img = document.createElement("img");
         img.className = "overlay";
         img.src = lamp.file;
         img.alt = lamp.name;
+
+        // ✅ per-icon fixed position/size
+        img.style.setProperty("--x", lamp.x);
+        img.style.setProperty("--y", lamp.y);
+        img.style.setProperty("--w", lamp.w);
+
         dashStage.appendChild(img);
         overlayEls.set(lamp.key, img);
       }
@@ -359,20 +373,19 @@
       }
     }
 
-    function updateStatus(extra=""){
+    function updateStatus(extraHtml=""){
       const n = selected.size;
       const keys = [...selected];
-      statusEl.innerHTML = `狀態：${n ? `已選擇 ${n} 個燈號` : "待選擇燈號"} <span class="pill">${n ? keys.join(" / ") : "可複選"}</span> ${extra}`;
+      statusEl.innerHTML = `
+        狀態：${n ? `已選擇 ${n} 個燈號` : "待選擇燈號"}
+        ${n ? `<span class="pill">${keys.join(" / ")}</span>` : `<span class="pill">可複選</span>`}
+        ${extraHtml}
+      `;
     }
 
     // ---------------------------
     // Patterns
     // ---------------------------
-    /**
-     * pattern type:
-     *  - steady: ON 3000ms, OFF 1000ms, repeat cycles
-     *  - blink: toggle every interval (1000 or 500) for duration
-     */
     async function runPattern(lampKey, pattern) {
       if (stopFlag) return;
 
@@ -386,7 +399,6 @@
           setOverlay(lampKey, false);
           await sleep(pattern.offMs ?? 1000);
         }
-        // end off
         setOverlay(lampKey, false);
         return;
       }
@@ -409,15 +421,13 @@
     }
 
     function randomPattern(){
-      const p = choice([
-        { type:"steady", onMs:3000, offMs:1000, cycles: randInt(1,3) },      // 長亮3秒/暗1秒，重複1~3輪
-        { type:"blink",  intervalMs:1000, durationMs: randInt(4000,9000) }, // 1秒閃 4~9秒
-        { type:"blink",  intervalMs:500,  durationMs: randInt(4000,9000) }, // 0.5秒閃 4~9秒
+      return choice([
+        { type:"steady", onMs:3000, offMs:1000, cycles: randInt(1,3) },       // 長亮3秒/暗1秒
+        { type:"blink",  intervalMs:1000, durationMs: randInt(4000,9000) },  // 1秒閃
+        { type:"blink",  intervalMs:500,  durationMs: randInt(4000,9000) },  // 0.5秒閃
       ]);
-      return p;
     }
 
-    // Randomly choose simultaneous or sequential
     function randomMode(){
       return Math.random() < 0.5 ? "simultaneous" : "sequential";
     }
@@ -440,25 +450,21 @@
       btnConfirm.disabled = true;
       btnStop.disabled = false;
 
-      // Freeze selection UI visually
-      for (const el of lampGrid.querySelectorAll(".lampBtn")) {
-        el.style.opacity = "0.9";
-      }
-
       const mode = randomMode();
-      const chosenKeys = [...selected]; // preserve click order (DOM order), or you can shuffle if you want:
-      // const chosenKeys = [...selected].sort(() => Math.random()-0.5); // shuffle order
-
+      const chosenKeys = [...selected]; // preserve selection set order (ok)
       const plan = chosenKeys.map(k => ({ key:k, pattern: randomPattern() }));
 
-      // show status
       const planText = plan.map(x => {
         if (x.pattern.type === "steady") return `${x.key}: 長亮3s/暗1s ×${x.pattern.cycles}`;
         if (x.pattern.type === "blink") return `${x.key}: 閃爍 ${x.pattern.intervalMs/1000}s`;
         return `${x.key}: ?`;
       }).join(" ｜ ");
 
-      updateStatus(`<span class="pill">模式：${mode === "simultaneous" ? "同時" : "依序"}</span> <span class="pill">隨機方案</span><br><span style="color:var(--muted)">${planText}</span>`);
+      updateStatus(`
+        <span class="pill">模式：${mode === "simultaneous" ? "同時" : "依序"}</span>
+        <span class="pill">隨機方案</span>
+        <div style="margin-top:6px;color:var(--muted)">${planText}</div>
+      `);
 
       try {
         if (mode === "simultaneous") {
@@ -467,8 +473,7 @@
           for (const x of plan) {
             if (stopFlag) break;
             await runPattern(x.key, x.pattern);
-            // 小緩衝：每顆燈之間隨機停一下（更像真人在操作）
-            await sleep(randInt(150, 600));
+            await sleep(randInt(150, 600)); // 小緩衝
           }
         }
       } finally {
@@ -476,10 +481,6 @@
         running = false;
         btnConfirm.disabled = false;
         btnStop.disabled = true;
-
-        for (const el of lampGrid.querySelectorAll(".lampBtn")) {
-          el.style.opacity = "1";
-        }
         updateStatus(`<span class="pill">完成</span>（可再按確認重跑一次隨機）`);
       }
     }
@@ -502,7 +503,6 @@
 
       const qrDiv = document.getElementById("qrcode");
       qrDiv.innerHTML = "";
-      // size auto-ish: 110
       new QRCode(qrDiv, {
         text: url,
         width: 110,
@@ -521,8 +521,6 @@
 
     btnConfirm.addEventListener("click", runScenario);
     btnStop.addEventListener("click", stopAndReset);
-
-    // If user resizes or the URL changes (rare), rebuild QR
     window.addEventListener("hashchange", buildQRCode);
   </script>
 </body>
